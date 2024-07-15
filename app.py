@@ -1,10 +1,8 @@
 """Blogly application."""
 
 from flask import Flask, request, render_template, redirect, flash, session
-
 from flask_debugtoolbar import DebugToolbarExtension
-from models import db, connect_db, User
-
+from models import db, connect_db, User, Post
 import logging
 
 logging.basicConfig()
@@ -29,13 +27,21 @@ with app.app_context():
     db.create_all()
 
 
-@app.route("/")
 @app.route("/users/", methods=["GET", "POST"])
 def list_users():
     """List blog users"""
 
     users = User.query.order_by("last_name")
-    return render_template("index.jinja-html", users=users)
+    return render_template("users.jinja-html", users=users)
+
+
+@app.route("/")
+@app.route("/posts/")
+def list_posts():
+    """List posts"""
+
+    posts = Post.query.order_by("title").all()
+    return render_template("index.jinja-html", posts=posts)
 
 
 @app.route("/users/new", methods=["GET"])
@@ -43,6 +49,33 @@ def add_user_form():
     """Add user"""
 
     return render_template("add-user.jinja-html")
+
+
+@app.route("/users/<int:user_id>/posts/new", methods=["GET"])
+def add_post_form(user_id):
+    """Add post form"""
+
+    user = User.query.get_or_404(user_id)
+    return render_template("add-post.jinja-html", user=user)
+
+
+@app.route("/users/<int:user_id>/posts/new", methods=["POST"])
+def add_post(user_id):
+    """Save new post to database"""
+
+    try:
+        title = request.form["title"]
+        body = request.form["body"]
+
+        new_post = Post(title=title, body=body, author_id=user_id)
+
+        db.session.add(new_post)
+        db.session.commit()
+
+        return redirect(f"/posts/{new_post.id}")
+    except Exception as e:
+        db.session.rollback()
+        return str(e), 500
 
 
 @app.route("/users/new", methods=["POST"])
@@ -56,8 +89,6 @@ def add_user():
         new_user = User(first_name=first_name, last_name=last_name, avatar=avatar)
 
         db.session.add(new_user)
-        db.session.flush()  # Flush the session to generate the ID without committing
-        logging.info(f"New user ID (before commit): {new_user.id}")
 
         db.session.commit()
 
@@ -112,3 +143,46 @@ def delete_user(user_id):
     db.session.commit()
 
     return redirect("/users/")
+
+
+@app.route("/posts/<int:post_id>")
+def post_detail(post_id):
+    """Display post"""
+
+    post = Post.query.get_or_404(post_id)
+
+    return render_template("post.jinja-html", post=post)
+
+
+@app.route("/posts/<int:post_id>/edit", methods=["GET"])
+def edit_post(post_id):
+    """Edit post form"""
+    post = Post.query.get_or_404(post_id)
+    return render_template("edit-post.jinja-html", post=post)
+
+
+@app.route("/posts/<int:post_id>/edit", methods=["POST"])
+def update_post(post_id):
+    """Update post"""
+    post = Post.query.get_or_404(post_id)
+    try:
+        post.title = request.form["title"]
+        post.body = request.form["body"]
+
+        db.session.commit()
+        return redirect(f"/posts/{post.id}")
+    except Exception as e:
+        db.session.rollback()
+        return str(e), 500
+
+
+@app.route("/posts/<int:post_id>/delete", methods=["GET"])
+def delete_post(post_id):
+    """Delete post"""
+
+    post = Post.query.get_or_404(post_id)
+
+    db.session.delete(post)
+    db.session.commit()
+
+    return redirect("/posts/")
