@@ -2,7 +2,7 @@
 
 from flask import Flask, request, render_template, redirect, flash, session
 from flask_debugtoolbar import DebugToolbarExtension
-from models import db, connect_db, User, Post
+from models import db, connect_db, User, Post, Tag
 import logging
 
 logging.basicConfig()
@@ -56,7 +56,8 @@ def add_post_form(user_id):
     """Add post form"""
 
     user = User.query.get_or_404(user_id)
-    return render_template("add-post.jinja-html", user=user)
+    tags = Tag.query.all()
+    return render_template("add-post.jinja-html", user=user, tags=tags)
 
 
 @app.route("/users/<int:user_id>/posts/new", methods=["POST"])
@@ -66,8 +67,10 @@ def add_post(user_id):
     try:
         title = request.form["title"]
         body = request.form["body"]
-
+        tag_ids = request.form.getlist("tags")
+        tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
         new_post = Post(title=title, body=body, author_id=user_id)
+        new_post.tags = tags
 
         db.session.add(new_post)
         db.session.commit()
@@ -112,8 +115,8 @@ def edit_user(user_id):
     """Edit user form"""
 
     user = User.query.get_or_404(user_id)
-
-    return render_template("edit-user.jinja-html", user=user)
+    tags = Tag.query.all()
+    return render_template("edit-user.jinja-html", user=user, tags=tags)
 
 
 @app.route("/users/<int:user_id>/edit", methods=["POST"])
@@ -150,8 +153,8 @@ def post_detail(post_id):
     """Display post"""
 
     post = Post.query.get_or_404(post_id)
-
-    return render_template("post.jinja-html", post=post)
+    tags = Tag.query.all()
+    return render_template("post.jinja-html", post=post, tags=tags)
 
 
 @app.route("/posts/<int:post_id>/edit", methods=["GET"])
@@ -168,6 +171,9 @@ def update_post(post_id):
     try:
         post.title = request.form["title"]
         post.body = request.form["body"]
+        tag_ids = request.form.getlist("tags")
+        tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+        post.tags = tags
 
         db.session.commit()
         return redirect(f"/posts/{post.id}")
@@ -186,3 +192,81 @@ def delete_post(post_id):
     db.session.commit()
 
     return redirect("/posts/")
+
+
+@app.route("/tags/")
+def list_tags():
+    """List tags"""
+
+    tags = Tag.query.order_by("name").all()
+    return render_template("tags.jinja-html", tags=tags)
+
+
+@app.route("/tags/new", methods=["GET"])
+def add_tag_form():
+    """Add tag form"""
+
+    return render_template("add-tag.jinja-html")
+
+
+@app.route("/tags/new", methods=["POST"])
+def add_tag():
+    """Add tag"""
+
+    try:
+        name = request.form["name"]
+
+        new_tag = Tag(name=name)
+
+        db.session.add(new_tag)
+        db.session.commit()
+
+        return redirect(f"/tags/")
+    except Exception as e:
+        db.session.rollback()
+        return str(e), 500
+
+
+@app.route("/tags/<int:tag_id>")
+def tag_detail(tag_id):
+    """Display tag"""
+
+    tag = Tag.query.get_or_404(tag_id)
+    posts = tag.posts.all()
+    return render_template("tag.jinja-html", tag=tag, posts=posts)
+
+
+@app.route("/tags/<int:tag_id>/edit", methods=["GET"])
+def edit_tag(tag_id):
+    """Edit tag form"""
+
+    tag = Tag.query.get_or_404(tag_id)
+
+    return render_template("edit-tag.jinja-html", tag=tag)
+
+
+@app.route("/tags/<int:tag_id>/edit", methods=["POST"])
+def update_tag(tag_id):
+    """Update tag"""
+
+    tag = Tag.query.get_or_404(tag_id)
+    try:
+        tag.name = request.form["name"]
+
+        db.session.commit()
+        return redirect(f"/tags/{tag.id}")
+    except Exception as e:
+        db.session.rollback()
+        return str(e), 500
+
+
+@app.route("/tags/<int:tag_id>/delete", methods=["GET"])
+def delete_tag(tag_id):
+    """Delete tag"""
+
+    tag = Tag.query.get_or_404(tag_id)
+
+    db.session.delete(tag)
+    db.session.commit()
+
+    return redirect("/tags/")

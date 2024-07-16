@@ -24,7 +24,14 @@
 						<textarea type="text" name="body" class="form-control">{{post.body}}</textarea>
 					</p>
 					<p>
-						<button type="submit" class="btn btn-primary">Save</button>
+						<label for="tags" class="form-label">Tags</label>
+						<br>
+						{% for tag in tags %}
+						<input type="checkbox" name="tags" value="{{ tag.id }}"
+							{% if tag in post.tags %}checked{% endif %}>
+						<label>{{ tag.name }}</label>
+						<br>
+						{% endfor %}
 					</p>
 				</div>
 			</form>

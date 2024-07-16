@@ -43,7 +43,37 @@ class Post(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     author = db.relationship("User", backref="posts")
 
+    tags = db.relationship(
+        "Tag", secondary="posttags", backref=db.backref("posts", lazy="dynamic")
+    )
+
     def __repr__(self):
         """Return Post info"""
         p = self
         return f"<Post.id={p.id} title={p.title} author={p.author.full_name}>"
+
+
+class Tag(db.Model):
+    """Tags for posts"""
+
+    __tablename__ = "tags"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+
+    def __repr__(self):
+        """Return tag"""
+        return f"<Tag.id={self.id} name={self.name}>"
+
+
+class PostTag(db.Model):
+    """Join posts with tags"""
+
+    __tablename__ = "posttags"
+
+    post_id = db.Column(
+        db.Integer, db.ForeignKey("posts.id"), nullable=False, primary_key=True
+    )
+    tag_id = db.Column(
+        db.Integer, db.ForeignKey("tags.id"), nullable=False, primary_key=True
+    )

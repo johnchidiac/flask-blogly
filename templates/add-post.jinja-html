@@ -24,6 +24,17 @@
 						<textarea type="text" name="body" class="form-control"></textarea>
 					</p>
 					<p>
+						<label>Tags</label>
+					<ul>
+						{% for tag in tags %}
+						<li>
+							<input type="checkbox" name="tags" value="{{tag.id}}">
+							{{tag.name}}
+						</li>
+						{% endfor %}
+					</ul>
+					</p>
+					<p>
 						<button type="submit" class="btn btn-primary">Add</button>
 					</p>
 				</div>
